@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 
-DB_PATH = Path("db/users.db")
+DB_PATH = Path(os.getenv("DB_PATH", "instance/users.db"))
 print(f"Using database at: {DB_PATH}")
 
 app = Flask(__name__)
@@ -47,10 +47,27 @@ test_user = {
 }
 
 def init_db():
+    """
+    Initialize the database with proper error handling and Render.com compatibility
+    """
+    conn = None
     try:
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            print(f"Database directory ready at: {DB_PATH.parent}")
+        except Exception as dir_error:
+            print(f"Warning: Could not create directory: {dir_error}")
+            fallback_path = Path("instance/users.db")
+            if fallback_path != DB_PATH:
+                print(f"Trying fallback path: {fallback_path}")
+                DB_PATH = fallback_path
+                DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
+
+        c.execute("PRAGMA foreign_keys = ON")
+
         c.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +79,7 @@ def init_db():
                 CHECK (email IS NOT NULL OR phone IS NOT NULL)
             )
         ''')
+
         c.execute('''
             CREATE TABLE IF NOT EXISTS users_numbers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,14 +87,30 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        c.execute('''
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+        ''')
+
         conn.commit()
-        print("Database initialized successfully")
+        print(f"Database initialized successfully at: {DB_PATH}")
+        print(f"Database size: {os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0} bytes")
+
+    except sqlite3.Error as db_error:
+        print(f"SQLite error during initialization: {db_error}")
+        if conn:
+            conn.rollback()
+        raise RuntimeError(f"Database initialization failed: {db_error}")
+
     except Exception as e:
-        print(f"Error initializing database: {e}")
-        raise
+        print(f"Unexpected error during DB initialization: {e}")
+        raise RuntimeError(f"Database initialization failed: {e}")
+
     finally:
-        if 'conn' in locals():
-            conn.close()
+        if conn:
+            try:
+                conn.close()
+            except Exception as close_error:
+                print(f"Error closing connection: {close_error}")
 
 init_db()
 
@@ -228,4 +262,5 @@ class HealthCheck(Resource):
         }, 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
