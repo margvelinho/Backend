@@ -7,7 +7,7 @@ import os
 from pathlib import Path
  
 # Define absolute path to database
-DB_PATH = Path(r"C:\database\users.db")
+DB_PATH = Path("db/users.db")
 print(f"Using database at: {DB_PATH}")
  
 # Initialize Flask app
