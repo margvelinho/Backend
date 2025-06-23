@@ -1,4 +1,6 @@
-Flask
+flask
 flask-restx
 flask-cors
+flask-jwt-extended
 gunicorn
+python-dotenv
