@@ -6,13 +6,16 @@ import re
 import os
 from pathlib import Path
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+from dotenv import load_dotenv
 
-DB_PATH = Path(os.getenv("DB_PATH", "instance/users.db"))
+load_dotenv()
+
+DB_PATH = Path(os.getenv("DB_PATH", "/tmp/users.db"))  
 print(f"Using database at: {DB_PATH}")
 
 app = Flask(__name__)
 
-app.config['JWT_SECRET_KEY'] = 'ff3580a44a7721c28865eefe6f4613142c0ce47750bcebd1445328ba99e88c9b'  # Replace with real secret!
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 jwt = JWTManager(app)
 
 CORS(app) 
@@ -262,5 +265,7 @@ class HealthCheck(Resource):
         }, 200
 
 if __name__ == '__main__':
+    print("Starting server...")
+    print(f"Database path: {DB_PATH}")
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=False)
