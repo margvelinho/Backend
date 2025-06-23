@@ -5,5 +5,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
+      - key: JWT_SECRET_KEY
+        value: your-strong-secret-key-here
       - key: FLASK_ENV
         value: production
